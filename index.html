@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dinos saltarin faunin programadorcin</title>
+    <style>
+
+
+* {
+    padding: 0;
+    margin: 0;
+}
+
+body{
+    height: 100vh;
+    background: #584040;
+    display: flex;
+    align-items: center;
+}
+
+.conteiner {
+    width: 920px;
+    height: 280px;
+    margin: 0 auto;
+    
+    position: relative;
+
+    background: linear-gradient(#b7d6c7, transparent) #ffe2d1;/*linear-gradient(#90ebff, white);*/
+    transition: background-color 1s linear;
+    overflow: hidden;
+}
+
+.noon {
+    background-color: #ffdcf3;
+}
+
+.afternoon {
+    background-color: #ffadad;
+}
+
+.night {
+    background-color: #aca8c7;
+}
+
+.dino {
+    width: 84px;
+    height: 84px;
+
+    position: absolute;
+    bottom: 22px;
+    left: 42px;
+    z-index: 2;
+
+    background: url(img/dino.png) repeat-x 0px 0px;
+    background-size: 336px 84px;
+    background-position-x: 0px;
+
+}
+
+.dino-running {
+    animation: dinoAnimation 0.25s steps(2) infinite;
+}
+.dino-crash {
+    background-position-x: -252px;
+}
+
+.floor{
+    width: 200%;
+    height: 42px;
+
+    position: absolute;
+    bottom: 0;
+    left: 0;
+
+    background: url(img/floor.png) repeat-x 0px 0px;
+    background-size: 50% 42px;
+
+}
+
+.cactus{
+    width: 46px;
+    height: 96px;
+
+    position: absolute;
+    bottom: 16px;
+    left: 600px;
+    z-index: 1;
+
+    background: url(img/cactus1.png) no-repeat;
+}
+.cactus2{
+    width: 98px;
+    height: 66px;
+
+    background: url(img/cactus2.png) no-repeat;
+}
+
+.cloud{
+    width: 92px;
+    height: 26px;
+
+    position: absolute;
+    z-index: 0;
+
+    background: url(img/cloud.png) no-repeat;
+    background-size: 92px 26px;
+}
+
+.flower{
+    width: 62px;
+    height: 17px;
+
+    position: absolute;
+    z-index: 1;
+
+    background: url(img/flower.png) no-repeat;
+    background-size: 62px 17px;
+}
+.score{
+    width: 100px;
+    height: 30px;
+
+    position: absolute;
+    top: 5px;
+    right: 15px;
+    z-index: 10;
+
+    color: #d48871;
+    font-family: Verdana;
+    font-size: 30px;
+    font-weight: bold;
+    text-align: right;
+}
+
+.game-over{
+    display: none;
+
+    position: absolute;
+    width: 100%;
+
+
+    text-align: center;
+    color: #7e928b;
+    font-size: 30px;
+    font-family: Verdana;
+    font-weight: 700;
+}
+
+@keyframes dinoAnimation{
+    from{
+        background-position-x: -84px;
+    }
+    to{
+        background-position-x: -252px;
+    }
+}
+
+
+
+</style>
+</head>
+<body>
+
+    <div class="conteiner">
+    
+    <div class="floor"></div>
+    
+    <div class="dino dino-running"></div>
+    
+    <div class="score">0</div>
+
+    </div>
+
+    <div class="game-over">GAME OVER</div>
+
+
+    <script>
+
+
+
+      //  ----GAME LOOP----
+
+      let time = new Date();
+let deltaTime = 0;
+
+if(document.readyState === "complete" || document.readyState === "interactive"){
+    setTimeout(Init, 1);
+}else{
+    document.addEventListener("DOMContentLoaded", Init); 
+}
+
+function Init (){
+        time=new Date();
+        Start();
+        Loop();
+    }
+
+function Loop(){
+            deltaTime= (new Date()-time)/1000;
+            time =new Date();
+            Update();
+            requestAnimationFrame(Loop);
+        }
+
+//****** GAME LOGIC ********//
+
+
+let floorY = 22;
+let velY = 0;
+let impulse = 900;
+let gravity = 2500;
+
+let dinoPosX = 42;
+let dinoPosY = floorY; 
+
+let floorX = 0;
+let velScenery = 1280/3;
+let gameVel = 1;
+let score = 0;
+
+let isStopped = false;
+let isJumping = false;
+
+let timeSpawn = 2;
+let timeSpawnMin = 0.7;
+let timeSpawnMax = 1.8;
+let spawnPosY = 16;
+let obstacles = [];
+
+let cloudTime = 0.5;
+let cloudTimeMin = 0.7;
+let cloudTimeMax = 2.7;
+let cloudMaxY = 270;
+let cloudMinY = 100;
+let clouds = [];
+let cloudVel = 0.5;
+let flowers =[];
+let conteiner;
+let dino;
+let textScore;
+let floor;
+let gameOver;
+
+function Start()
+{
+     gameOver= document.querySelector(".game-over");
+     floor=document.querySelector(".floor");
+     conteiner=document.querySelector(".conteiner");
+     textScore=document.querySelector(".score");
+     dino=document.querySelector(".dino");
+    document.addEventListener("keydown",HandleKeyDown);
+}
+function Update() {
+    if(isStopped) return;
+    
+    MoveDino();
+    MoveFloor();
+    DecideCreateObstacle();
+    DecideCreateClouds();
+    DecideCreateFlowers();
+    MoveFlowers();                                                                                      
+    MoveObstacles();
+    MoveClouds();
+    DetectedCollision();
+
+    velY -= gravity * deltaTime;
+}
+
+function HandleKeyDown(ev)
+{
+    if (ev.keyCode==32){
+        Jump();
+    }
+}
+
+
+function Jump(){
+    if(dinoPosY === floorY){
+        isJumping = true;
+        velY = impulse;
+        dino.classList.remove("dino-running");
+    }
+}
+
+
+
+
+
+function MoveDino() {
+    dinoPosY += velY * deltaTime;
+    if(dinoPosY < floorY){
+        
+        TouchFLoor();
+    }
+    dino.style.bottom = dinoPosY+"px";
+}
+
+    function TouchFLoor(){
+        dinoPosY = floorY;
+        velY =0;
+        if (isJumping){
+            dino.classList.add("dino-running");
+        }
+        isJumping=false;
+    }
+
+
+    function MoveFloor() {
+    floorX += CalculateDisplacement();
+    floor.style.left = -(floorX % conteiner.clientWidth) + "px";
+}
+
+    function CalculateDisplacement(){
+        return velScenery*deltaTime*gameVel;
+    }
+
+  
+function Crashed() {
+    dino.classList.remove("dino-running");
+    dino.classList.add("dino-crash");
+    isStopped = true;
+}
+
+function DecideCreateObstacle() {
+    timeSpawn -= deltaTime;
+    if(timeSpawn <= 0) {
+        CreateObstacle();
+
+    }
+}
+ 
+function DecideCreateClouds() {
+    cloudTime -= deltaTime;
+    if(cloudTime <= 0) {
+        CreateCloud();
+    }
+}
+
+function DecideCreateFlowers() {
+    cloudTime -= deltaTime;
+    if(cloudTime <= 0) {
+        Crearflowers();
+    }
+}
+function Crearflowers() {
+    const flower = document.createElement("div");
+    conteiner.appendChild(flower);
+    flower.classList.add("flower");
+
+    flower.posX = conteiner.clientWidth;
+    flower.style.left = conteiner.clientWidth+"px";
+
+    flowers.push(flower);
+}
+function CreateObstacle() {
+    const obstacle = document.createElement("div");
+    conteiner.appendChild(obstacle);
+    obstacle.classList.add("cactus");
+    if(Math.random() > 0.5) obstacle.classList.add("cactus2");
+    obstacle.posX = conteiner.clientWidth;
+    obstacle.style.left = conteiner.clientWidth+"px";
+
+    obstacles.push(obstacle);
+    timeSpawn = timeSpawnMin + Math.random() * (timeSpawnMax-timeSpawnMin) / gameVel;
+}
+    function CreateCloud(){
+        const cloud = document.createElement("div");
+        conteiner.appendChild(cloud);
+        cloud.classList.add("cloud");
+        cloud.posX = conteiner.clientWidth;
+        cloud.style.left = conteiner.clientWidth+"px";
+        cloud.style.bottom = cloudMinY + Math.random() * (cloudMaxY-cloudMinY)+"px";
+        
+        clouds.push(cloud);
+        cloudTime=cloudTimeMin + Math.random()*(cloudTimeMax-cloudTimeMin)/gameVel;
+
+    }
+
+
+     function MoveObstacles(){
+        for(let i = obstacles.length-1 ; i>=0 ; i--){
+                if(obstacles[i].posX< -obstacles[i].clientWidth){
+                        obstacles[i].parentNode.removeChild(obstacles[i]);
+                        obstacles.splice(i,1);
+                        WinScore();
+                }else {
+                    obstacles[i].posX -= CalculateDisplacement();
+                    obstacles[i].style.left= obstacles[i].posX+"px";
+
+                }
+        }
+    }
+
+
+function MoveClouds(){
+        for (let i= clouds.length -1 ; i>=0 ; i--){
+            if(clouds[i].posX<-clouds[i].clientWidth){
+                clouds[i].parentNode.removeChild(clouds[i]);
+                clouds.splice(i,1);
+
+            }else 
+            {
+                clouds[i].posX -= CalculateDisplacement()* cloudVel;
+                clouds[i].style.left=clouds[i].posX+"px";
+            }
+        }
+
+    }
+    function MoveFlowers(){
+        for (let i= flowers.length -1 ; i>=0 ; i--){
+            if(flowers[i].posX<-flowers[i].clientWidth){
+                flowers[i].parentNode.removeChild(flowers[i]);
+                flowers.splice(i,1);
+
+            }else 
+            {
+                flowers[i].posX -= CalculateDisplacement()* cloudVel;
+                flowers[i].style.left=flowers[i].posX+"px";
+            }
+        }
+
+    }
+
+    function WinScore(){
+        score++;
+        textScore.innerText=score;
+        if(score==5){
+                gameVel=1.5;
+                conteiner.classList.add("noon");
+        }else if (score==10){
+                gameVel=2;
+                conteiner.classList.add("afternoon");
+        }else if (score==20){
+            gameVel=3;
+            conteiner.classList.add("night");
+        }
+
+        floor.style.animationDuration=(3/gameVel)+"s";
+    }
+
+    function GameOver(){
+        Crashed();
+        gameOver.style.display="block";
+
+    }
+    function DetectedCollision(){
+        for(let i =0; i< obstacles.length; i++){
+            if(obstacles[i].posX > dinoPosX + dino.clientWidth) {
+            //EVADE
+            break; //al estar en orden , no puede chocar con mas
+        }else {
+        if (IsCollision(dino,obstacles[i],10,30,15,20)){
+                GameOver();
+            }
+        }
+    }
+    }
+    
+function IsCollision(a, b, paddingTop, paddingRight, paddingBottom, paddingLeft) {
+    const aRect = a.getBoundingClientRect();
+    const bRect = b.getBoundingClientRect();
+
+    return !(
+        ((aRect.top + aRect.height - paddingBottom) < (bRect.top)) ||
+        (aRect.top + paddingTop > (bRect.top + bRect.height)) ||
+        ((aRect.left + aRect.width - paddingRight) < bRect.left) ||
+        (aRect.left + paddingLeft > (bRect.left + bRect.width))
+    );
+}
+
+
+ </script> 
+</body>
+</html>
